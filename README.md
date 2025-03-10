@@ -5,7 +5,10 @@ Uma aplicação desktop simples para converter imagens PNG e JPEG para o formato
 ## O que isso faz?
 
 Este aplicativo permite:
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2e4b339442aa475460c7bb65a7caf507b5aa318c
 - Selecionar uma pasta com imagens PNG ou JPEG
 - Converter todas as imagens para o formato WebP (que geralmente ocupa menos espaço)
 - Visualizar estatísticas de redução de tamanho para cada imagem
