@@ -15,6 +15,11 @@
             <button id="convert" disabled>Converter Imagens</button>
         </div>
         
+        <div class="checkbox-group">
+            <input type="checkbox" id="deleteOriginal" />
+            <label for="deleteOriginal">Deletar arquivo original após converter</label>
+        </div>
+        
         <p id="folderPath">Nenhuma pasta selecionada</p>
         
         <div class="status-container">
@@ -48,9 +53,10 @@
 
         document.getElementById("convert").addEventListener("click", () => {
             if (window.selectedFolder) {
+                const deleteOriginal = document.getElementById("deleteOriginal").checked;
                 document.getElementById("progress").innerHTML = '<div class="conversion-item">Iniciando conversão...</div>';
                 document.getElementById("convert").disabled = true;
-                ipcRenderer.send("convert-images", window.selectedFolder);
+                ipcRenderer.send("convert-images", { folderPath: window.selectedFolder, deleteOriginal });
             }
         });
 

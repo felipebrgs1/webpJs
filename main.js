@@ -18,6 +18,22 @@ app.whenReady().then(() => {
     mainWindow.loadFile("index.html");
 });
 
+// Função recursiva para listar todos os arquivos em subpastas
+async function listFilesRecursively(dir) {
+    let results = [];
+    const list = await fs.readdir(dir);
+    for (const file of list) {
+        const filePath = path.join(dir, file);
+        const stat = await fs.stat(filePath);
+        if (stat && stat.isDirectory()) {
+            results = results.concat(await listFilesRecursively(filePath));
+        } else {
+            results.push(filePath);
+        }
+    }
+    return results;
+}
+
 ipcMain.on("select-folder", async (event) => {
     const result = await dialog.showOpenDialog(mainWindow, {
         properties: ["openDirectory"],
@@ -28,14 +44,14 @@ ipcMain.on("select-folder", async (event) => {
     }
 });
 
-ipcMain.on("convert-images", async (event, folderPath) => {
+ipcMain.on("convert-images", async (event, { folderPath, deleteOriginal }) => {
     try {
-        const files = await fs.readdir(folderPath);
+        const files = await listFilesRecursively(folderPath);
         const imageFiles = files.filter(file => /\.(png|jpe?g)$/i.test(file));
 
         for (const file of imageFiles) {
-            const inputPath = path.join(folderPath, file);
-            const outputPath = path.join(folderPath, file.replace(/\.(png|jpe?g)$/i, ".webp"));
+            const inputPath = file;
+            const outputPath = file.replace(/\.(png|jpe?g)$/i, ".webp");
             
             // Obter tamanho do arquivo original
             const originalSize = (await fs.stat(inputPath)).size;
@@ -56,12 +72,17 @@ ipcMain.on("convert-images", async (event, folderPath) => {
             const webpSizeFormatted = (webpSize / 1024).toFixed(2);
 
             event.reply("conversion-status", {
-                file: file,
+                file: path.basename(inputPath),
                 webpFile: path.basename(outputPath),
                 originalSize: originalSizeFormatted,
                 webpSize: webpSizeFormatted,
                 reduction: reductionPercent
             });
+
+            // Deletar arquivo original se a opção estiver marcada
+            if (deleteOriginal) {
+                await fs.unlink(inputPath);
+            }
         }
 
         event.reply("conversion-complete", "Conversão concluída!");
