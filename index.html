@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversor de Imagens</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h2>Conversor de PNG/JPEG para WEBP</h2>
+        
+        <div class="button-group">
+            <button id="selectFolder">Selecionar Pasta</button>
+            <button id="convert" disabled>Converter Imagens</button>
+        </div>
+        
+        <p id="folderPath">Nenhuma pasta selecionada</p>
+        
+        <div class="status-container">
+            <div id="progress" class="conversion-progress"></div>
+            <div id="summary" class="summary" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require("electron");
+        let totalReduction = 0;
+        let fileCount = 0;
+        let totalOriginalSize = 0;
+        let totalWebpSize = 0;
+
+        document.getElementById("selectFolder").addEventListener("click", () => {
+            ipcRenderer.send("select-folder");
+            document.getElementById("progress").innerHTML = "";
+            document.getElementById("summary").style.display = "none";
+            totalReduction = 0;
+            fileCount = 0;
+            totalOriginalSize = 0;
+            totalWebpSize = 0;
+        });
+
+        ipcRenderer.on("folder-selected", (event, folderPath) => {
+            document.getElementById("folderPath").textContent = `Pasta selecionada: ${folderPath}`;
+            document.getElementById("convert").disabled = false;
+            window.selectedFolder = folderPath;
+        });
+
+        document.getElementById("convert").addEventListener("click", () => {
+            if (window.selectedFolder) {
+                document.getElementById("progress").innerHTML = '<div class="conversion-item">Iniciando conversão...</div>';
+                document.getElementById("convert").disabled = true;
+                ipcRenderer.send("convert-images", window.selectedFolder);
+            }
+        });
+
+        ipcRenderer.on("conversion-status", (event, data) => {
+            fileCount++;
+            totalOriginalSize += parseFloat(data.originalSize);
+            totalWebpSize += parseFloat(data.webpSize);
+            
+            const progressDiv = document.getElementById("progress");
+            const item = document.createElement("div");
+            item.className = "conversion-item";
+            
+            const fileNames = document.createElement("div");
+            fileNames.className = "file-names";
+            fileNames.textContent = `${data.file} → ${data.webpFile}`;
+            
+            const reductionBar = document.createElement("div");
+            reductionBar.className = "reduction-bar";
+            
+            const reductionFill = document.createElement("div");
+            reductionFill.className = "reduction-fill";
+            reductionFill.style.width = "0%";
+            reductionBar.appendChild(reductionFill);
+            
+            const stats = document.createElement("div");
+            stats.className = "stats";
+            
+            const sizes = document.createElement("span");
+            sizes.textContent = `Original: ${data.originalSize} KB | WEBP: ${data.webpSize} KB`;
+            
+            const reduction = document.createElement("span");
+            reduction.className = "reduction";
+            reduction.textContent = `Redução: ${data.reduction}%`;
+            
+            stats.appendChild(sizes);
+            stats.appendChild(reduction);
+            
+            item.appendChild(fileNames);
+            item.appendChild(reductionBar);
+            item.appendChild(stats);
+            
+            progressDiv.appendChild(item);
+            
+            // Animar a barra de progresso
+            setTimeout(() => {
+                reductionFill.style.width = `${data.reduction}%`;
+            }, 100);
+        });
+
+        ipcRenderer.on("conversion-complete", (event, message) => {
+            document.getElementById("convert").disabled = false;
+            
+            const overallReduction = ((totalOriginalSize - totalWebpSize) / totalOriginalSize * 100).toFixed(2);
+            
+            const summary = document.getElementById("summary");
+            summary.innerHTML = `
+                <div>Conversão concluída! ${fileCount} arquivo(s) processado(s).</div>
+                <div>Tamanho original total: ${totalOriginalSize.toFixed(2)} KB</div>
+                <div>Tamanho WEBP total: ${totalWebpSize.toFixed(2)} KB</div>
+                <div class="reduction">Redução média: ${overallReduction}%</div>
+            `;
+            summary.style.display = "block";
+        });
+
+        ipcRenderer.on("conversion-error", (event, message) => {
+            document.getElementById("progress").innerHTML += `<div class="conversion-item" style="border-left-color: #e74c3c;">${message}</div>`;
+            document.getElementById("convert").disabled = false;
+        });
+    </script>
+</body>
+</html>
